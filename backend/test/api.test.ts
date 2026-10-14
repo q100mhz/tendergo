@@ -27,7 +27,7 @@ class Client {
     const set = res.headers["set-cookie"];
     const first = Array.isArray(set) ? set[0] : set;
     if (first) this.cookie = first.split(";")[0]!;
-    return { status: res.statusCode, body: res.json() };
+    return { status: res.statusCode, body: res.json(), setCookie: first };
   }
 }
 
@@ -45,6 +45,9 @@ describe("api", () => {
       orgName: "ООО Ромашка",
     });
     expect(r.status).toBe(200);
+    // The site shares its domain with another application, so the session cookie must stay under /tendergo.
+    expect(r.setCookie).toMatch(/Path=\/tendergo(;|$)/);
+    expect(r.setCookie).toMatch(/HttpOnly/);
     const me = await owner.req("GET", "/api/me");
     expect(me.body.user.email).toBe("boss@example.com");
     expect(me.body.org).toMatchObject({ name: "ООО Ромашка", role: "owner" });
@@ -65,7 +68,7 @@ describe("api", () => {
   it("invited employee joins the employer workspace through the link", async () => {
     const inv = await owner.req("POST", "/api/orgs/current/invitations", { email: "worker@example.com" });
     expect(inv.status).toBe(200);
-    expect(inv.body.link).toContain("/register?invite=");
+    expect(inv.body.link).toMatch(/^http:\/\/localhost:5173\/tendergo\/register\?invite=/);
     const inviteToken = new URL(inv.body.link).searchParams.get("invite");
 
     const info = await new Client().req("GET", `/api/invitations/${inviteToken}`);

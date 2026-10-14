@@ -6,7 +6,9 @@ COPY frontend/package.json frontend/
 RUN npm ci
 COPY backend backend
 COPY frontend frontend
-RUN npm run build -w backend && npm run build -w frontend
+# URL path of the site; baked into the frontend build, must match BASE_PATH of the api and web containers.
+ARG BASE_PATH=/tendergo
+RUN npm run build -w backend && BASE_PATH="$BASE_PATH" npm run build -w frontend
 
 FROM node:24-slim AS api
 WORKDIR /app

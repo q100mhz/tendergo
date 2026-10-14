@@ -1,6 +1,6 @@
 # TenderGo
 
-Агрегатор закупок с zakupki.gov.ru (44-ФЗ и 223-ФЗ) с рабочими пространствами для команд.
+Агрегатор закупок с zakupki.gov.ru (44-ФЗ и 223-ФЗ) с рабочими пространствами для команд. Работает по адресу https://itb2bhost.ru/tendergo.
 
 - Список закупок: название, окончание приёма заявок, начальная цена, заказчик, закон.
 - Ключи фильтрации на уровне организации: ОКПД2, КТРУ (по префиксу), регион, заказчик (ИНН или название).
@@ -26,12 +26,12 @@
 
 - **Backend:** Node.js 24, TypeScript, Fastify, Drizzle ORM, PostgreSQL, cheerio (разбор страниц ЕИС), croner (расписание).
 - **Frontend:** React 19, Vite, TanStack Query, React Router.
-- **Деплой:** Docker Compose (Postgres, API, воркер, Caddy с автоматическим HTTPS).
+- **Деплой:** Docker Compose (Postgres, API, воркер, Caddy со статикой) за nginx сервера, который отдаёт HTTPS и проксирует путь `/tendergo`.
 
 ```
 backend/   API, воркер загрузки, миграции (drizzle/), тесты (test/)
 frontend/  SPA
-deploy/    Caddyfile
+deploy/    Caddyfile контейнера и блок для nginx сервера
 ```
 
 ## Локальная разработка
@@ -41,7 +41,7 @@ deploy/    Caddyfile
 ```bash
 npm install
 TENDER_SOURCE=mock npm run dev:api   # API на :3000, тестовые закупки (или eis, если ЕИС доступен из вашей сети)
-npm run dev:web                      # сайт на http://localhost:5173
+npm run dev:web                      # сайт на http://localhost:5173/tendergo/
 ```
 
 Проверки:
@@ -63,7 +63,9 @@ npm run build
 
 Пошаговая инструкция — в [DEPLOY.md](DEPLOY.md): загрузка на GitHub, подготовка VPS, первый запуск, автодеплой через GitHub Actions, бэкапы.
 
-Коротко: на сервере (обязательно с российским IP — zakupki.gov.ru не отвечает зарубежным адресам) нужны Docker, клон репозитория и `.env` по образцу `.env.example`. Дальше `docker compose up -d --build` поднимает Postgres, API, воркер загрузки и Caddy, а Caddy сам выпускает HTTPS-сертификат. После настройки секретов `VPS_*` каждый пуш в `main` проходит CI и автоматически выкатывается на сервер.
+Коротко: сайт живёт по пути `BASE_PATH=/tendergo` на домене, который уже обслуживает nginx с другим сайтом. Сервер должен быть с российским IP: zakupki.gov.ru не отвечает зарубежным адресам. На сервере нужны Docker, клон репозитория и `.env` по образцу `.env.example`. Команда `docker compose up -d --build` поднимает Postgres, API, воркер загрузки и Caddy только на `127.0.0.1:8090`. В nginx добавляется блок из `deploy/nginx-tendergo.conf`, и он отправляет `/tendergo` в контейнер, а HTTPS остаётся за nginx. После настройки секретов `VPS_*` каждый пуш в `main` проходит CI и автоматически выкатывается на сервер.
+
+Путь задаётся в одном месте, переменной `BASE_PATH` в `.env`: из неё собирается фронтенд, её используют Caddy, путь cookie входа и ссылки-приглашения.
 
 ## Ограничения источника данных
 

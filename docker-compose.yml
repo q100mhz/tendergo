@@ -28,7 +28,8 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgres://tendergo:${POSTGRES_PASSWORD}@db:5432/tendergo
-      PUBLIC_URL: https://${DOMAIN}
+      BASE_PATH: ${BASE_PATH:-/tendergo}
+      PUBLIC_URL: https://${DOMAIN:?set DOMAIN in .env}${BASE_PATH:-/tendergo}
     depends_on:
       db: { condition: service_healthy }
     healthcheck:
@@ -45,25 +46,25 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgres://tendergo:${POSTGRES_PASSWORD}@db:5432/tendergo
+      BASE_PATH: ${BASE_PATH:-/tendergo}
     depends_on:
       api: { condition: service_healthy }
 
+  # Site and API on 127.0.0.1:WEB_PORT only; nginx on the host proxies https://DOMAIN/tendergo here.
   web:
-    build: { context: ., target: web }
+    build:
+      context: .
+      target: web
+      args:
+        BASE_PATH: ${BASE_PATH:-/tendergo}
     restart: unless-stopped
     logging: *logging
     environment:
-      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+      BASE_PATH: ${BASE_PATH:-/tendergo}
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - caddy_data:/data
-      - caddy_config:/config
+      - "127.0.0.1:${WEB_PORT:-8090}:80"
     depends_on:
       - api
 
 volumes:
   pgdata:
-  caddy_data:
-  caddy_config:

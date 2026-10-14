@@ -12,7 +12,14 @@ const schema = z.object({
     .enum(["true", "false"])
     .optional()
     .transform((v) => (v === undefined ? undefined : v === "true")),
-  PUBLIC_URL: z.string().default("http://localhost:5173"),
+  // URL path the site lives under (https://itb2bhost.ru/tendergo); must match the frontend build.
+  BASE_PATH: z
+    .string()
+    .default("/tendergo")
+    .transform((v) => `/${v.replace(/^\/+|\/+$/g, "")}`)
+    .refine((v) => /^(\/[A-Za-z0-9._~-]+)+$/.test(v), "BASE_PATH must look like /tendergo"),
+  // Public address of the site including BASE_PATH; used in invitation links.
+  PUBLIC_URL: z.string().optional(),
   TENDER_SOURCE: z.enum(["eis", "mock"]).default("eis"),
   INGEST_CRON: z.string().default("5 * * * *"),
   INGEST_ON_START: z
@@ -33,5 +40,6 @@ if (parsed.NODE_ENV === "production" && parsed.JWT_SECRET === "dev-secret-change
 
 export const config = {
   ...parsed,
+  PUBLIC_URL: (parsed.PUBLIC_URL ?? `http://localhost:5173${parsed.BASE_PATH}`).replace(/\/+$/, ""),
   COOKIE_SECURE: parsed.COOKIE_SECURE ?? parsed.NODE_ENV === "production",
 };

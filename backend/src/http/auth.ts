@@ -33,13 +33,14 @@ export async function setSession(app: FastifyInstance, reply: FastifyReply, payl
     httpOnly: true,
     sameSite: "lax",
     secure: config.COOKIE_SECURE,
-    path: "/",
+    // Scoped to the site's path so other applications on the same domain never receive the session.
+    path: config.BASE_PATH,
     maxAge: MAX_AGE,
   });
 }
 
 export function clearSession(reply: FastifyReply) {
-  reply.clearCookie(SESSION_COOKIE, { path: "/" });
+  reply.clearCookie(SESSION_COOKIE, { path: config.BASE_PATH });
 }
 
 export async function readSession(req: FastifyRequest): Promise<SessionPayload | null> {
