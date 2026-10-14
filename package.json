@@ -1,0 +1,13 @@
+{
+  "name": "tendergo",
+  "private": true,
+  "workspaces": ["backend", "frontend"],
+  "scripts": {
+    "dev:api": "npm run dev -w backend",
+    "dev:worker": "npm run worker:dev -w backend",
+    "dev:web": "npm run dev -w frontend",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "test": "npm test -w backend",
+    "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend"
+  }
+}

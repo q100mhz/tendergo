@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: tendergo
+          POSTGRES_PASSWORD: tendergo
+          POSTGRES_DB: tendergo
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tendergo"
+          --health-interval 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Tests (embedded PGlite)
+        run: npm test
+      - name: Tests (PostgreSQL 17, as in production)
+        run: npm test
+        env:
+          TEST_DATABASE_URL: postgres://tendergo:tendergo@localhost:5432/tendergo
+      - run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --target api -t tendergo-api .
+      - run: docker build --target web -t tendergo-web .

@@ -1,0 +1,1 @@
+ALTER TABLE "tenders" ADD COLUMN "source_hash" text;

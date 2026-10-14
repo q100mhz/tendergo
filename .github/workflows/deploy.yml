@@ -1,0 +1,44 @@
+name: Deploy
+
+# Runs after CI succeeds on main (or manually). Needs repository secrets VPS_HOST, VPS_USER and VPS_SSH_KEY;
+# without them the job just skips. See DEPLOY.md.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          if [ -z "$VPS_HOST" ] || [ -z "$VPS_USER" ] || [ -z "$VPS_SSH_KEY" ]; then
+            echo "::notice::VPS_HOST, VPS_USER or VPS_SSH_KEY secret is not set — skipping deploy"
+            exit 0
+          fi
+          PORT="${VPS_PORT:-22}"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/deploy_key -p "$PORT" "$VPS_USER@$VPS_HOST" 'bash -se' <<'REMOTE'
+            set -euo pipefail
+            cd ~/tendergo
+            git pull --ff-only
+            docker compose up -d --build --remove-orphans
+            docker image prune -f
+            docker compose ps
+          REMOTE
